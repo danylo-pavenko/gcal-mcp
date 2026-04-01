@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "gcal-multi": {
+      "url": "http://localhost:3040/mcp/sse"
+    }
+  }
+}
