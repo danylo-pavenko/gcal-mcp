@@ -4,8 +4,10 @@ import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { IncomingMessage, ServerResponse } from 'http';
 import { CalendarService } from '../calendar/calendar.service';
 import { GmailService } from '../gmail/gmail.service';
+import { TasksService } from '../tasks/tasks.service';
 import { registerCalendarTools } from './tools/calendar.tools';
 import { registerGmailTools } from './tools/gmail.tools';
+import { registerTasksTools } from './tools/tasks.tools';
 
 @Injectable()
 export class McpService {
@@ -15,6 +17,7 @@ export class McpService {
   constructor(
     private readonly calendarService: CalendarService,
     private readonly gmailService: GmailService,
+    private readonly tasksService: TasksService,
   ) {}
 
   private createMcpServer(): McpServer {
@@ -24,6 +27,7 @@ export class McpService {
     );
     registerCalendarTools(server, this.calendarService);
     registerGmailTools(server, this.gmailService);
+    registerTasksTools(server, this.tasksService);
     return server;
   }
 

@@ -6,6 +6,7 @@ import { AccountsModule } from './accounts/accounts.module';
 import { AuthModule } from './auth/auth.module';
 import { CalendarModule } from './calendar/calendar.module';
 import { GmailModule } from './gmail/gmail.module';
+import { TasksModule } from './tasks/tasks.module';
 import { McpModule } from './mcp/mcp.module';
 
 @Module({
@@ -19,6 +20,7 @@ import { McpModule } from './mcp/mcp.module';
     AuthModule,
     CalendarModule,
     GmailModule,
+    TasksModule,
     McpModule,
   ],
 })
