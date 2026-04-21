@@ -2,4 +2,6 @@ node_modules/
 dist/
 logs/
 .env
+.env.db
+.env.secrets
 *.js.map
