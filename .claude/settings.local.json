@@ -6,5 +6,10 @@
       "Bash(pm2 logs:*)",
       "WebFetch(domain:thirstless-chelsea-unmethodically.ngrok-free.dev)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "context7",
+    "sequential-thinking",
+    "playwright"
+  ]
 }
