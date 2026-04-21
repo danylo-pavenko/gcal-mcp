@@ -1,23 +1,27 @@
-import { Controller, Get, Delete, Param, Res } from '@nestjs/common';
+import { Controller, Get, Delete, Param, Res, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
 import { AccountsService } from './accounts.service';
+import { AdminAuthGuard } from '../security/admin-auth.guard';
 
 @Controller('accounts')
+@UseGuards(AdminAuthGuard)
 export class AccountsController {
   private readonly appUrl: string;
+  private readonly mcpToken: string;
 
   constructor(
     private readonly accountsService: AccountsService,
     private readonly configService: ConfigService,
   ) {
     this.appUrl = this.configService.getOrThrow<string>('APP_URL');
+    this.mcpToken = this.configService.getOrThrow<string>('MCP_TOKEN');
   }
 
   @Get()
   async listAccounts(@Res() res: Response) {
     const accounts = await this.accountsService.findAll();
-    const sseUrl = `${this.appUrl}/mcp/sse`;
+    const sseUrl = `${this.appUrl}/mcp/sse?token=${encodeURIComponent(this.mcpToken)}`;
     const rows = accounts
       .map(
         (a) => `
@@ -63,8 +67,13 @@ export class AccountsController {
   .divider { border: none; border-top: 1px solid #e0e0e0; margin: 28px 0; }
 </style></head>
 <body>
-  <h1>Google Calendar MCP</h1>
-  <p class="subtitle">Multi-account calendar integration for Claude</p>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+    <div>
+      <h1>Google Calendar MCP</h1>
+      <p class="subtitle">Multi-account calendar integration for Claude</p>
+    </div>
+    <a href="/logout" style="color:#666;font-size:13px;text-decoration:none;margin-top:12px;">Sign out</a>
+  </div>
 
   <h2>Connected Accounts</h2>
   <table>

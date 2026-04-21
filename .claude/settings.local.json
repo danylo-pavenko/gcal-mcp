@@ -4,7 +4,16 @@
       "Bash(npm run:*)",
       "Bash(pm2 restart:*)",
       "Bash(pm2 logs:*)",
-      "WebFetch(domain:thirstless-chelsea-unmethodically.ngrok-free.dev)"
+      "WebFetch(domain:thirstless-chelsea-unmethodically.ngrok-free.dev)",
+      "Bash(chmod +x /Users/danylopavenko/Development/claude-projs/gcal-mcp/scripts/*.sh)",
+      "Bash(bash -n /Users/danylopavenko/Development/claude-projs/gcal-mcp/scripts/setup-db.sh)",
+      "Bash(bash -n /Users/danylopavenko/Development/claude-projs/gcal-mcp/scripts/deploy.sh)",
+      "Bash(bash -n /Users/danylopavenko/Development/claude-projs/gcal-mcp/scripts/setup-nginx-certbot.sh)",
+      "Bash(command -v shellcheck)",
+      "Bash(shellcheck /Users/danylopavenko/Development/claude-projs/gcal-mcp/scripts/*.sh)",
+      "Bash(git *)",
+      "Bash(openssl rand *)",
+      "Bash(npx eslint *)"
     ]
   },
   "enabledMcpjsonServers": [

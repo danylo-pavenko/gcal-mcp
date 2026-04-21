@@ -8,6 +8,7 @@ import { CalendarModule } from './calendar/calendar.module';
 import { GmailModule } from './gmail/gmail.module';
 import { TasksModule } from './tasks/tasks.module';
 import { McpModule } from './mcp/mcp.module';
+import { SecurityModule } from './security/security.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { McpModule } from './mcp/mcp.module';
       inject: [ConfigService],
       useFactory: getDatabaseConfig,
     }),
+    SecurityModule,
     AccountsModule,
     AuthModule,
     CalendarModule,
