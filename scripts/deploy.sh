@@ -32,7 +32,9 @@ die()  { printf '\033[1;31m==> [ERROR]\033[0m %s\n' "$*" >&2; exit 1; }
 
 trap 'die "failed at line $LINENO"' ERR
 
-[[ $EUID -ne 0 ]] || die "do not run as root — use your deploy user"
+if [[ $EUID -eq 0 ]]; then
+  warn "running as root — pm2 processes will be owned by root"
+fi
 
 log "checking Node.js"
 command -v node >/dev/null || die "Node.js not found — install Node 20+ (nvm recommended)"

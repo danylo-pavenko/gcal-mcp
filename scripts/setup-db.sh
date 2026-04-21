@@ -18,6 +18,7 @@ PG_PORT="${PG_PORT:-5433}"
 PG_HOST="${PG_HOST:-localhost}"
 DB_NAME="${DB_NAME:-gcal_mcp}"
 DB_USER="${DB_USER:-gcal_mcp}"
+OWNER=""
 ROTATE=0
 FORCE=0
 
@@ -27,13 +28,15 @@ ENV_DB_FILE="$PROJECT_DIR/.env.db"
 
 usage() {
   cat <<EOF
-Usage: sudo $0 [--rotate] [--force] [--port PORT] [--db NAME] [--user NAME]
+Usage: sudo $0 [--rotate] [--force] [--port PORT] [--db NAME] [--user NAME] [--owner USER]
 
-  --rotate      Reset the role password even if the role already exists.
-  --force       Overwrite .env.db if it already exists.
-  --port PORT   PostgreSQL port (default: 5433).
-  --db NAME     Database name (default: gcal_mcp).
-  --user NAME   Role name (default: gcal_mcp).
+  --rotate        Reset the role password even if the role already exists.
+  --force         Overwrite .env.db if it already exists.
+  --port PORT     PostgreSQL port (default: 5433).
+  --db NAME       Database name (default: gcal_mcp).
+  --user NAME     Role name (default: gcal_mcp).
+  --owner USER    chown .env.db to this user. Defaults to \$SUDO_USER if set,
+                  otherwise the file is left owned by root (chmod 600).
 
 Must be run as root (uses 'sudo -u postgres psql').
 EOF
@@ -46,6 +49,7 @@ while [[ $# -gt 0 ]]; do
     --port)   PG_PORT="$2"; shift 2 ;;
     --db)     DB_NAME="$2"; shift 2 ;;
     --user)   DB_USER="$2"; shift 2 ;;
+    --owner)  OWNER="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown argument: $1" >&2; usage; exit 2 ;;
   esac
@@ -59,10 +63,14 @@ trap 'die "failed at line $LINENO"' ERR
 
 [[ $EUID -eq 0 ]] || die "must run as root (need sudo -u postgres)"
 
-# Resolve the non-root user who invoked sudo so we can chown .env.db back.
-TARGET_USER="${SUDO_USER:-}"
-[[ -n "$TARGET_USER" && "$TARGET_USER" != "root" ]] \
-  || die "run via sudo from the deploy user (SUDO_USER must be set)"
+# Resolve ownership for the generated .env.db. Priority:
+#   1. --owner flag
+#   2. $SUDO_USER (when invoked via sudo from a non-root shell)
+#   3. none — file stays owned by root (still chmod 600)
+TARGET_USER="$OWNER"
+if [[ -z "$TARGET_USER" && -n "${SUDO_USER:-}" && "$SUDO_USER" != "root" ]]; then
+  TARGET_USER="$SUDO_USER"
+fi
 
 command -v psql >/dev/null || die "psql not found on PATH"
 
@@ -137,7 +145,9 @@ DB_USER=$DB_USER
 DB_PASSWORD=$DB_PASSWORD
 DATABASE_URL=postgresql://$DB_USER:$DB_PASSWORD@$PG_HOST:$PG_PORT/$DB_NAME
 EOF
-chown "$TARGET_USER":"$TARGET_USER" "$ENV_DB_FILE"
+if [[ -n "$TARGET_USER" ]]; then
+  chown "$TARGET_USER":"$TARGET_USER" "$ENV_DB_FILE"
+fi
 chmod 600 "$ENV_DB_FILE"
 
 log "done. Next: copy DATABASE_URL from $ENV_DB_FILE into $PROJECT_DIR/.env"
