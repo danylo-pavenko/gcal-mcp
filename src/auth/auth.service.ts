@@ -10,6 +10,7 @@ import { createOAuth2Client, GOOGLE_SCOPES } from '../config/google.config';
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private readonly oauth2Client: OAuth2Client;
+  private readonly refreshInFlight = new Map<string, Promise<{ access_token: string; refresh_token: string | null; expiry_date: number }>>();
 
   constructor(
     private readonly configService: ConfigService,
@@ -41,38 +42,71 @@ export class AuthService {
       email,
       label,
       accessToken: tokens.access_token!,
-      refreshToken: tokens.refresh_token!,
+      refreshToken: tokens.refresh_token ?? undefined,
       expiryDate: tokens.expiry_date!,
     });
   }
 
   async getAuthenticatedClient(account: GoogleAccount): Promise<OAuth2Client> {
-    const client = createOAuth2Client(this.configService);
-    const accessToken = this.accountsService.decryptAccessToken(account);
-    const refreshToken = this.accountsService.decryptRefreshToken(account);
+    const needsRefresh = account.token_expiry.getTime() < Date.now() + 5 * 60_000;
 
+    let creds: { access_token: string; refresh_token: string | null; expiry_date: number };
+
+    if (needsRefresh) {
+      let inFlight = this.refreshInFlight.get(account.id);
+      if (!inFlight) {
+        inFlight = this.doRefresh(account).finally(() => {
+          this.refreshInFlight.delete(account.id);
+        });
+        this.refreshInFlight.set(account.id, inFlight);
+      }
+      creds = await inFlight;
+    } else {
+      creds = {
+        access_token: this.accountsService.decryptAccessToken(account),
+        refresh_token: this.accountsService.decryptRefreshToken(account),
+        expiry_date: account.token_expiry.getTime(),
+      };
+    }
+
+    const client = createOAuth2Client(this.configService);
+    client.setCredentials(creds);
+    return client;
+  }
+
+  private async doRefresh(account: GoogleAccount): Promise<{ access_token: string; refresh_token: string | null; expiry_date: number }> {
+    this.logger.log(`Refreshing token for ${account.email}`);
+
+    const client = createOAuth2Client(this.configService);
     client.setCredentials({
-      access_token: accessToken,
-      refresh_token: refreshToken,
+      access_token: this.accountsService.decryptAccessToken(account),
+      refresh_token: this.accountsService.decryptRefreshToken(account),
       expiry_date: account.token_expiry.getTime(),
     });
 
-    if (account.token_expiry.getTime() < Date.now() + 60_000) {
-      this.logger.log(`Refreshing token for ${account.email}`);
-      try {
-        const { credentials } = await client.refreshAccessToken();
-        client.setCredentials(credentials);
-        await this.accountsService.updateTokens(
-          account.id,
-          credentials.access_token!,
-          credentials.expiry_date!,
-        );
-      } catch (err) {
-        this.logger.error(`Failed to refresh token for ${account.email}`, err);
-        throw err;
+    try {
+      const { credentials } = await client.refreshAccessToken();
+      await this.accountsService.updateTokens(
+        account.id,
+        credentials.access_token!,
+        credentials.expiry_date!,
+        credentials.refresh_token ?? undefined,
+      );
+      return {
+        access_token: credentials.access_token!,
+        refresh_token: credentials.refresh_token ?? null,
+        expiry_date: credentials.expiry_date!,
+      };
+    } catch (err: any) {
+      const isInvalidGrant =
+        err?.response?.data?.error === 'invalid_grant' ||
+        err?.message?.includes('invalid_grant');
+      if (isInvalidGrant) {
+        this.logger.error(`Refresh token revoked for ${account.email}, deactivating account`);
+        await this.accountsService.deactivateAccount(account.id);
       }
+      this.logger.error(`Failed to refresh token for ${account.email}`, err);
+      throw err;
     }
-
-    return client;
   }
 }

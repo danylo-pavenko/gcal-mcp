@@ -36,21 +36,27 @@ export class AccountsService {
     email: string;
     label: string;
     accessToken: string;
-    refreshToken: string;
+    refreshToken?: string;
     expiryDate: number;
   }): Promise<GoogleAccount> {
     let account = await this.findByEmail(data.email);
 
     const encAccessToken = encrypt(data.accessToken, this.configService);
-    const encRefreshToken = encrypt(data.refreshToken, this.configService);
 
     if (account) {
       account.access_token = encAccessToken;
-      account.refresh_token = encRefreshToken;
+      if (data.refreshToken) {
+        account.refresh_token = encrypt(data.refreshToken, this.configService);
+      }
       account.token_expiry = new Date(data.expiryDate);
       account.is_active = true;
       return this.repo.save(account);
     }
+
+    if (!data.refreshToken) {
+      throw new Error(`No refresh token provided for new account ${data.email}`);
+    }
+    const encRefreshToken = encrypt(data.refreshToken, this.configService);
 
     account = this.repo.create({
       email: data.email,
@@ -67,11 +73,17 @@ export class AccountsService {
     id: string,
     accessToken: string,
     expiryDate: number,
+    refreshToken?: string,
   ): Promise<void> {
     await this.repo.update(id, {
       access_token: encrypt(accessToken, this.configService),
       token_expiry: new Date(expiryDate),
+      ...(refreshToken ? { refresh_token: encrypt(refreshToken, this.configService) } : {}),
     });
+  }
+
+  async deactivateAccount(id: string): Promise<void> {
+    await this.repo.update(id, { is_active: false });
   }
 
   async remove(id: string): Promise<void> {
